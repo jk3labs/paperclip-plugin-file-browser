@@ -1,5 +1,6 @@
 import { definePlugin, runWorker } from "@paperclipai/plugin-sdk";
 import type { PluginApiRequestInput, PluginApiResponse, PluginContext } from "@paperclipai/plugin-sdk";
+import os from 'os';
 import fs from 'fs-extra';
 import path from 'path';
 import { createRequire } from 'module';
@@ -21,7 +22,7 @@ function getArchiver() {
 }
 
 let pluginCtx: PluginContext | null = null;
-const DEFAULT_ROOT_DIR = process.env["PAPERCLIP_DEFAULT_WORKSPACE"] || process.cwd();
+const DEFAULT_ROOT_DIR = process.env["PAPERCLIP_DEFAULT_WORKSPACE"] || path.join(os.homedir(), '.paperclip', 'instances', 'default');
 
 let INSTANCE_DIR: string | null = null;
 try {
