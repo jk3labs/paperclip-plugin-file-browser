@@ -8,6 +8,18 @@ import { fileURLToPath } from 'url';
 const _require = createRequire(import.meta.url);
 const archiverModule = _require('archiver');
 
+function getArchiver() {
+  if (typeof archiverModule === 'function') return archiverModule;
+  if (archiverModule && typeof archiverModule.default === 'function') return archiverModule.default;
+  if (archiverModule && typeof archiverModule.ZipArchive === 'function') {
+    return (format: string, options: any) => new archiverModule.ZipArchive(options);
+  }
+  if (archiverModule?.default?.default && typeof archiverModule.default.default === 'function') {
+    return archiverModule.default.default;
+  }
+  return archiverModule;
+}
+
 let pluginCtx: PluginContext | null = null;
 const DEFAULT_ROOT_DIR = process.env["PAPERCLIP_DEFAULT_WORKSPACE"] || process.cwd();
 
@@ -134,28 +146,12 @@ async function handleZip(input: PluginApiRequestInput): Promise<PluginApiRespons
     const stats = await fs.stat(targetPath);
     if (!stats.isDirectory()) return { status: 404, body: { error: "Directory not found" } };
     
-    // DEFENSIVE INITIALIZATION
-    let archive: any;
-    const options = { zlib: { level: 9 } };
-
-    if (typeof archiverModule === 'function') {
-      archive = archiverModule("zip", options);
-    } else if (archiverModule && typeof archiverModule.default === 'function') {
-      archive = archiverModule.default("zip", options);
-    } else if (archiverModule && typeof archiverModule.ZipArchive === 'function') {
-      // Use ZipArchive class directly if factory is missing (avoids registry errors)
-      archive = new archiverModule.ZipArchive(options);
-    } else if (archiverModule && typeof archiverModule.Archiver === 'function') {
-      // Last resort: manually initialize Archiver if factory is broken
-      archive = new archiverModule.Archiver("zip", options);
-    } else {
-      throw new Error(`Unsupported archiver module structure. Type: ${typeof archiverModule}`);
+    const archiver = getArchiver();
+    if (typeof archiver !== 'function') {
+      throw new Error(`Archiver module failed to initialize. Type: ${typeof archiver}`);
     }
 
-    if (!archive || typeof archive.on !== 'function') {
-      throw new Error("Failed to create archive instance or instance is not an event emitter");
-    }
-
+    const archive = archiver("zip", { zlib: { level: 9 } });
     const buffers: Buffer[] = [];
     archive.on("data", (d: Buffer) => buffers.push(d));
     const finished = new Promise<void>((resolve, reject) => {
@@ -183,11 +179,7 @@ const plugin = definePlugin({
   async setup(ctx) {
     pluginCtx = ctx;
     ctx.logger.info("File Browser Plugin started");
-    ctx.logger.info(`Default root directory: ${DEFAULT_ROOT_DIR}`);
-    if (INSTANCE_DIR) {
-      ctx.logger.info(`Resolved instance directory: ${INSTANCE_DIR}`);
-    }
-
+    
     ctx.data.register("list-files", async (params) => {
       try {
         const companyId = params?.companyId as string;
@@ -209,6 +201,40 @@ const plugin = definePlugin({
         };
       } catch (e: any) {
         if (ctx) ctx.logger.error(`Error in list-files handler: ${e.message}`);
+        throw e;
+      }
+    });
+
+    // New data provider for file content preview
+    ctx.data.register("get-file-content", async (params) => {
+      try {
+        const companyId = params?.companyId as string;
+        const projectId = params?.projectId as string;
+        const entityId = params?.entityId as string;
+        const entityType = params?.entityType as string;
+        const relativePath = (params?.path as string) || "";
+
+        if (!relativePath) throw new Error("Path parameter is required");
+
+        const rootDir = await resolveRootDir(companyId, projectId, entityId, entityType);
+        const targetPath = path.join(rootDir, relativePath);
+
+        if (!isAllowed(targetPath, rootDir)) throw new Error("Access denied");
+        const stats = await fs.stat(targetPath);
+        if (!stats.isFile()) throw new Error("File not found");
+
+        const ext = path.extname(targetPath).toLowerCase();
+        const isBinary = ['.png', '.jpg', '.jpeg', '.gif', '.svg', '.ico', '.pdf'].includes(ext);
+
+        if (isBinary) {
+          const content = await fs.readFile(targetPath);
+          return { content: content.toString("base64"), isBinary: true, ext };
+        } else {
+          const content = await fs.readFile(targetPath, 'utf8');
+          return { content, isBinary: false, ext };
+        }
+      } catch (e: any) {
+        if (ctx) ctx.logger.error(`Error in get-file-content handler: ${e.message}`);
         throw e;
       }
     });
