@@ -24,10 +24,17 @@ function getArchiver() {
 let pluginCtx: PluginContext | null = null;
 const getFallbackRootDir = () => {
   const home = os.homedir();
-  const standardPath = path.join(home, '.paperclip', 'instances', 'default');
-  if (fs.existsSync(standardPath)) return standardPath;
-  if (home === '/paperclip' || fs.existsSync(path.join(home, 'plugins'))) return home;
-  return standardPath;
+  const pathsToTry = [
+    path.join(home, '.paperclip', 'instances', 'default'),
+    path.join(home, 'instances', 'default'),
+    '/paperclip/instances/default',
+    home
+  ];
+  
+  for (const p of pathsToTry) {
+    if (fs.existsSync(p)) return p;
+  }
+  return pathsToTry[0];
 };
 
 const DEFAULT_ROOT_DIR = process.env["PAPERCLIP_DEFAULT_WORKSPACE"] || getFallbackRootDir();
@@ -36,14 +43,24 @@ let INSTANCE_DIR: string | null = null;
 try {
   const __filename = fileURLToPath(import.meta.url);
   const __dirname = path.dirname(__filename);
-  // Match instance root (e.g., ~/.paperclip/instances/default)
-  let match = __dirname.match(/(.*[\\/]instances[\\/][^\\/]+)/i);
-  // Fallback: match plugins root (common in Docker where instance is mounted at /paperclip)
-  if (!match) {
-    match = __dirname.match(/(.*)[\\/]plugins[\\/]/i);
-  }
   
-  if (match) {
+  // 1. Try standard instance path detection
+  let match = __dirname.match(/(.*[\\/]instances[\\/][^\\/]+)/i);
+  
+  // 2. Try Docker sibling detection (if in .paperclip/plugins, look for ../../instances/default)
+  if (!match && __dirname.toLowerCase().includes('.paperclip' + path.sep + 'plugins')) {
+    const base = __dirname.split(path.sep + '.paperclip' + path.sep + 'plugins')[0];
+    const dockerInstance = path.join(base, 'instances', 'default');
+    if (fs.existsSync(dockerInstance)) {
+      INSTANCE_DIR = dockerInstance;
+    }
+  }
+
+  // 3. Last resort fallback to plugins parent
+  if (!match && !INSTANCE_DIR) {
+    match = __dirname.match(/(.*)[\\/]plugins[\\/]/i);
+    if (match) INSTANCE_DIR = path.normalize(match[1]);
+  } else if (match) {
     INSTANCE_DIR = path.normalize(match[1]);
   }
 } catch (e) {}
