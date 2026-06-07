@@ -1,6 +1,6 @@
 {
   "name": "@jk3labs/paperclip-plugin-file-browser",
-  "version": "0.4.31",
+  "version": "0.4.32",
   "description": "A Paperclip plugin for browsing files in the default workspace",
   "type": "module",
   "main": "./dist/index.js",

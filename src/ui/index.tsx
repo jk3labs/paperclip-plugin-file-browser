@@ -645,29 +645,22 @@ export function DashboardWidget({ context }: PluginWidgetProps) {
   return (
     <LocalErrorBoundary>
       <div style={{ 
-        backgroundColor: 'var(--card, #ffffff)',
-        border: '1px solid var(--border, #e2e8f0)',
-        borderRadius: '8px',
-        overflow: 'hidden'
+        padding: '12px 16px', 
+        borderBottom: '1px solid var(--border, #e2e8f0)',
+        display: 'flex', 
+        alignItems: 'center', 
+        gap: '8px',
+        color: 'var(--foreground, #1e293b)'
       }}>
-        <div style={{ 
-          padding: '12px 16px', 
-          borderBottom: '1px solid var(--border, #e2e8f0)',
-          display: 'flex', 
-          alignItems: 'center', 
-          gap: '8px',
-          color: 'var(--foreground, #1e293b)'
-        }}>
-          <FolderIcon size={16} />
-          <h3 style={{ margin: 0, fontSize: '14px', fontWeight: 600 }}>File Browser</h3>
-        </div>
-        <FileBrowserMain 
-          companyId={context?.companyId} 
-          projectId={context?.projectId}
-          entityId={context?.entityId}
-          entityType={context?.entityType}
-        />
+        <FolderIcon size={16} />
+        <h3 style={{ margin: 0, fontSize: '14px', fontWeight: 600 }}>File Browser</h3>
       </div>
+      <FileBrowserMain 
+        companyId={context?.companyId} 
+        projectId={context?.projectId}
+        entityId={context?.entityId}
+        entityType={context?.entityType}
+      />
     </LocalErrorBoundary>
   );
 }
