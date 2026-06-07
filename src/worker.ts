@@ -22,13 +22,27 @@ function getArchiver() {
 }
 
 let pluginCtx: PluginContext | null = null;
-const DEFAULT_ROOT_DIR = process.env["PAPERCLIP_DEFAULT_WORKSPACE"] || path.join(os.homedir(), '.paperclip', 'instances', 'default');
+const getFallbackRootDir = () => {
+  const home = os.homedir();
+  const standardPath = path.join(home, '.paperclip', 'instances', 'default');
+  if (fs.existsSync(standardPath)) return standardPath;
+  if (home === '/paperclip' || fs.existsSync(path.join(home, 'plugins'))) return home;
+  return standardPath;
+};
+
+const DEFAULT_ROOT_DIR = process.env["PAPERCLIP_DEFAULT_WORKSPACE"] || getFallbackRootDir();
 
 let INSTANCE_DIR: string | null = null;
 try {
   const __filename = fileURLToPath(import.meta.url);
   const __dirname = path.dirname(__filename);
-  const match = __dirname.match(/(.*[\\/]instances[\\/][^\\/]+)/i);
+  // Match instance root (e.g., ~/.paperclip/instances/default)
+  let match = __dirname.match(/(.*[\\/]instances[\\/][^\\/]+)/i);
+  // Fallback: match plugins root (common in Docker where instance is mounted at /paperclip)
+  if (!match) {
+    match = __dirname.match(/(.*)[\\/]plugins[\\/]/i);
+  }
+  
   if (match) {
     INSTANCE_DIR = path.normalize(match[1]);
   }
