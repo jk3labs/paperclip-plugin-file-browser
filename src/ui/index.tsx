@@ -44,7 +44,7 @@ class LocalErrorBoundary extends Component<{ children: ReactNode }, { hasError: 
   render() {
     if (this.state.hasError) {
       return (
-        <div style={{ padding: '16px', color: 'var(--destructive, #ef4444)', border: '1px solid var(--border, #e2e8f0)', borderRadius: '8px', margin: '16px', backgroundColor: 'var(--card, #ffffff)' }}>
+        <div style={{ padding: '16px', color: 'var(--destructive, #ef4444)', border: '1px solid var(--border, #e2e8f0)', borderRadius: '8px', margin: '16px', backgroundColor: 'var(--background, #ffffff)' }}>
           <h4 style={{ margin: '0 0 8px 0' }}>Plugin UI Crash</h4>
           <p style={{ fontSize: '13px', margin: 0 }}>{this.state.error?.message || "Unknown error"}</p>
         </div>
